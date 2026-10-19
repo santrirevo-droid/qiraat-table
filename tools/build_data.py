@@ -91,6 +91,7 @@ def load_quran():
             text = re.sub(r"^بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ ", "", text)
         words = [w for w in text.split() if rasm(w)]
         ayat[(s, a)] = Ayah((w, rasm(w)) for w in words)
+        ayat[(s, a)].text = text
     for (s, a), words in ayat.items():
         nxt = ayat.get((s, a + 1))
         words.after = nxt[0] if nxt else None
@@ -245,13 +246,15 @@ def build(only_surah=None, review=False):
             continue
         items.sort(key=lambda it: (it["a"], it["_pos"]))
         for it in items:
-            del it["_pos"]
+            it["p"] = it.pop("_pos")
+        texts = {a: ayat[(s, a)].text for a in sorted({it["a"] for it in items})}
         lines = ",\n".join("    " + json.dumps(it, ensure_ascii=False) for it in items)
         blocks.append(
             "QIRAAT_SURAHS.push({\n"
             f"  surah: {s},\n"
             f"  complete: {'true' if s in complete else 'false'},\n"
             f"  source: {json.dumps(sources.get(s) or 'النشر في القراءات العشر لابن الجزري', ensure_ascii=False)},\n"
+            f"  ayat: {json.dumps(texts, ensure_ascii=False)},\n"
             "  items: [\n" + lines + "\n  ]\n});\n"
         )
         print(f"surah {s}: {len(items)} positions{' (complete)' if s in complete else ''}")

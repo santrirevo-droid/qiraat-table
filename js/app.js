@@ -56,7 +56,7 @@
 
     return {
       key: `${surah}:${item.a}:${order}`,
-      surah, ayah: item.a, harf: item.h,
+      surah, ayah: item.a, harf: item.h, pos: item.p,
       ref: item.ref || '', verified: !!item.ok,
       byKhulf: variants,
       byIthbat: applyIthbat(variants),
@@ -81,14 +81,58 @@
   }
 
   const COMPLETE = {};
+  const AYAT = {};
   const ITEMS = (window.QIRAAT_SURAHS || [])
     .sort((x, y) => x.surah - y.surah)
     .flatMap(s => {
       COMPLETE[s.surah] = !!s.complete;
+      AYAT[s.surah] = s.ayat || {};
       return s.items.map((it, i) => resolveItem(s.surah, it, i));
     })
-    .sort((x, y) => x.surah - y.surah || x.ayah - y.ayah);
+    .sort((x, y) => x.surah - y.surah || x.ayah - y.ayah || (x.pos ?? 0) - (y.pos ?? 0));
   const BY_KEY = Object.fromEntries(ITEMS.map(it => [it.key, it]));
+  const BY_AYAH = {};
+  ITEMS.forEach(it => { (BY_AYAH[`${it.surah}:${it.ayah}`] ||= []).push(it); });
+
+  /* ---------- Full ayah text ---------- */
+
+  // Tanzil text keeps waqf signs as separate tokens; only tokens with letters count as words (as in build_data.py).
+  const isWord = t => /[ء-غف-يٱ-ۓ]/.test(t);
+
+  // Word indexes of the ayah covered by a position's harf. The harf may start a word or two before
+  // the anchor word ({prev} {w}), skip words ("…"), or run into the next ayah, so match it word by word.
+  function harfWords(o, words) {
+    const hw = String(o.harf).split(/\s+/).filter(w => w && w !== '…').map(normalize);
+    const start = [o.pos - 2, o.pos - 1, o.pos].find(i => i >= 0 && words[i] === hw[0]);
+    if (start === undefined) return new Set([o.pos]);
+    const out = new Set();
+    let j = start;
+    for (const w of hw) {
+      const k = words.indexOf(w, j);
+      if (k < 0 || k - j > 6) break;
+      out.add(k); j = k + 1;
+    }
+    return out;
+  }
+
+  function ayahHtml(it) {
+    const text = (AYAT[it.surah] || {})[it.ayah];
+    if (!text) return '';
+    const tokens = text.split(' ');
+    const words = tokens.filter(isWord).map(normalize);
+    const main = it.pos != null ? harfWords(it, words) : new Set();
+    const other = new Set((BY_AYAH[`${it.surah}:${it.ayah}`] || [])
+      .filter(o => o !== it && o.pos != null).flatMap(o => [...harfWords(o, words)]));
+    let n = -1;
+    const html = tokens.map(tok => {
+      if (!isWord(tok)) return `<span class="ayah-mark">${esc(tok)}</span>`;
+      n++;
+      if (main.has(n)) return `<mark class="hl-main">${esc(tok)}</mark>`;
+      if (other.has(n)) return `<span class="hl-other">${esc(tok)}</span>`;
+      return esc(tok);
+    }).join(' ');
+    return `${html} <span class="ayah-end">﴿${toAr(it.ayah)}﴾</span>`;
+  }
 
   /* ---------- State ---------- */
 
@@ -202,8 +246,8 @@
       const n = it.shown.length;
       return it.shown.map((v, i) => {
         const lead = i === 0
-          ? `<td class="cell-ayah sc sc-1" rowspan="${n}">${ayahLabel(it)}${unverifiedBadge(it)}</td>
-             <td class="cell-harf sc sc-2" rowspan="${n}"><button type="button" class="harf-btn" data-key="${it.key}" title="عرض التفصيل والمرجع">${esc(it.harf)}</button></td>`
+          ? `<td class="cell-ayah sc sc-1" rowspan="${n}" data-tip="${it.key}">${ayahLabel(it)}${unverifiedBadge(it)}</td>
+             <td class="cell-harf sc sc-2" rowspan="${n}"><button type="button" class="harf-btn" data-key="${it.key}" data-tip="${it.key}">${esc(it.harf)}</button></td>`
           : '';
         const cells = qurra.map(q => state.mode === 'ruwat'
           ? q.ruwat.map(([c], j) => `<td class="cell-tick${j === 0 ? ' qari-start' : ''}">${rawiCell(v.marks[c])}</td>`).join('')
@@ -287,8 +331,10 @@
       ? `<p class="dlg-note">في هذا الموضع خلافٌ عن بعض الرواة؛ المعروض رواية الإثبات. للاطلاع على الوجهين اختر «إظهار الخلف».</p>`
       : '';
     $('dlg-title').textContent = ayahLabel(it);
+    const ayah = ayahHtml(it);
     $('dlg-body').innerHTML = `
       <div class="dlg-harf">${esc(it.harf)}</div>
+      ${ayah ? `<p class="ayah-full">${ayah}</p>` : ''}
       <p class="dlg-summary">${esc(summarize(variants))}</p>
       ${khulfNote}
       <div class="dlg-variants">${variants.filter(v => Object.keys(v.marks).length).map(v => `
@@ -302,6 +348,67 @@
       <p class="dlg-status ${it.verified ? 'ok' : ''}">${it.verified ? '✓ رُوجع على المصدر' : 'لم يُراجَع على المصدر بعد'}</p>`;
     const dlg = $('detail');
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+
+  /* ---------- Hover card ---------- */
+
+  function tipHtml(it) {
+    const variants = variantsOf(it).filter(v => Object.keys(v.marks).length);
+    const others = (BY_AYAH[`${it.surah}:${it.ayah}`] || []).filter(o => o !== it);
+    const hasKhulf = it.byKhulf.some(v => Object.values(v.marks).includes('khulf'));
+    return `
+      <div class="tip-head"><span>${ayahLabel(it)}</span>${unverifiedBadge(it)}</div>
+      <p class="ayah-full">${ayahHtml(it) || esc(it.harf)}</p>
+      <div class="tip-sec">
+        <div class="tip-label">موضع الاختلاف: <b class="tip-harf">${esc(it.harf)}</b></div>
+        <p class="tip-summary">${esc(summarize(variants))}</p>
+        ${hasKhulf ? `<p class="tip-note">فيه خلافٌ عن بعض الرواة${state.method === 'ithbat' ? '؛ المعروض رواية الإثبات' : ''}.</p>` : ''}
+      </div>
+      ${others.length ? `<div class="tip-sec"><div class="tip-label">مواضع أخرى في الآية (${toAr(others.length)})</div>
+        <div class="tip-others">${others.map(o => `<span class="tip-chip">${esc(o.harf)}</span>`).join('')}</div></div>` : ''}
+      <div class="tip-foot"><span>${it.ref ? esc(it.ref) : 'بلا مرجع بعد'}</span><span class="tip-hint">انقر للتفصيل</span></div>`;
+  }
+
+  function initTip() {
+    const tip = $('tip');
+    let timer = null, current = null;
+    const hide = () => { clearTimeout(timer); current = null; tip.hidden = true; };
+    const place = el => {
+      const r = el.getBoundingClientRect(), pad = 12;
+      tip.style.left = '0px'; tip.style.top = '0px';
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      let left = r.left + r.width / 2 - w / 2;
+      left = Math.min(Math.max(pad, left), window.innerWidth - w - pad);
+      let top = r.bottom + 8;
+      if (top + h > window.innerHeight - pad) top = Math.max(pad, r.top - h - 8);
+      tip.style.left = `${left}px`; tip.style.top = `${top}px`;
+    };
+    const show = el => {
+      const it = BY_KEY[el.dataset.tip];
+      if (!it) return;
+      current = el;
+      tip.innerHTML = tipHtml(it);
+      tip.hidden = false;
+      place(el);
+    };
+    document.addEventListener('pointerover', e => {
+      if (e.pointerType && e.pointerType !== 'mouse') return;
+      const el = e.target.closest('[data-tip]');
+      if (!el || el === current) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => show(el), 180);
+    });
+    document.addEventListener('pointerout', e => {
+      const el = e.target.closest('[data-tip]');
+      if (el && !el.contains(e.relatedTarget)) hide();
+    });
+    document.addEventListener('focusin', e => {
+      const el = e.target.closest('[data-tip]');
+      if (el && el.matches(':focus-visible')) show(el); else hide();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+    document.addEventListener('click', hide);
+    window.addEventListener('scroll', hide, { passive: true, capture: true });
   }
 
   /* ---------- Controls ---------- */
@@ -370,5 +477,6 @@
   }
 
   initControls();
+  initTip();
   render();
 })();
