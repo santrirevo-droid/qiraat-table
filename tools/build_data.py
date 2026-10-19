@@ -188,6 +188,8 @@ def occurrences(rule, ayat, where):
 
 def build(only_surah=None, review=False):
     ayat = load_quran()
+    tahqiq_file = DATA_DIR / "tahqiq.json"
+    tahqiq = json.loads(tahqiq_file.read_text(encoding="utf8"))["rules"] if tahqiq_file.exists() else {}
     out = defaultdict(list)
     placed = {}  # (s, a, word index) -> (kind, where, item)
     sources = {}
@@ -227,6 +229,8 @@ def build(only_surah=None, review=False):
                     item["ref"] = rule["ref"]
                 if rule.get("ok"):
                     item["ok"] = True
+                if tahqiq.get(where):
+                    item["chk"] = tahqiq[where]
                 key = (s, a, i)
                 if key in placed:
                     prev_kind, prev_where, prev_item = placed[key]

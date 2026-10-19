@@ -3,3 +3,4 @@
 __pycache__/
 # Teks an-Nashr hasil unduhan Shamela: hanya untuk kerja lokal, tidak didistribusikan
 sources/nashr-farsh.jsonl
+sources/nashr-usul.jsonl

@@ -24,8 +24,23 @@ Cukup buka `index.html` di peramban. Tidak perlu server atau proses build.
   - mim al-jam'
   - istifham berulang
 - Jika para rawi berbeda thariq, yang ditampilkan adalah **riwayat al-itsbat**. Tombol «إظهار الخلف» menampilkan kedua wajh.
-- **Semua data belum diverifikasi manusia.** Mohon cocokkan dengan kitab sebelum dipakai untuk mengajar atau ijazah.
+- **Semua data belum di-tahqiq manusia.** Mohon cocokkan dengan kitab sebelum dipakai untuk mengajar atau ijazah.
   Koreksi sangat diharapkan; silakan buka *issue*.
+
+## Status pemeriksaan
+
+Setiap aturan sudah diperiksa terhadap sumbernya. Hasilnya disimpan di `data/tahqiq.json` dan tampil sebagai badge di tabel:
+
+| Badge | Arti | Aturan | Posisi |
+|---|---|---|---|
+| مطابق للمصدرين | nama qari'/rawi cocok otomatis dengan kalimat an-Nasyr di halaman rujukan **dan** dengan al-Budur | 664 | 1253 |
+| مطابق للنشر | cocok otomatis dengan kalimat an-Nasyr | 121 | 131 |
+| مطابق للبدور | cocok otomatis dengan al-Budur (aturannya ditulis dari an-Nasyr) | 306 | 727 |
+| مراجَع على النشر | dibaca ulang manual terhadap teks an-Nasyr karena pernyataannya majemuk atau ejaannya berbeda | 126 | 159 |
+| محقَّق | sudah di-tahqiq manusia pada kitab (`"ok": true` di aturan) | 0 | 0 |
+
+Pemeriksaan otomatis memakai `tools/verify_nashr.py`; perbandingan dengan al-Budur dilakukan dengan skrip terpisah dan teks al-Budur tidak disertakan.
+Untuk menandai sebuah aturan sudah di-tahqiq, tambahkan `"ok": true` pada aturan tersebut di `rules/`.
 
 ## Struktur
 

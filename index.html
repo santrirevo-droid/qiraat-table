@@ -247,6 +247,14 @@
     color: var(--tick-khulf); background: var(--tick-khulf-bg); border-radius: 999px; padding: 1px 7px;
   }
   .ayah-group-head .badge-unverified { display: inline-block; margin: 0 6px; }
+  .badge-check {
+    display: block; width: fit-content; margin: 4px auto 0; font-size: 10px; font-weight: 500;
+    border-radius: 999px; padding: 1px 7px; color: var(--teal-deep); background: #e4efe9;
+  }
+  .badge-check.badge-ok { color: #fff; background: var(--tick-on); }
+  .badge-check.badge-n, .badge-check.badge-b { background: #edf1e3; color: #4a5a1f; }
+  .badge-check.badge-m { background: #eee6d4; color: var(--gold-deep); }
+  .ayah-group-head .badge-check, .tip-head .badge-check { display: inline-block; margin: 0 6px; }
 
   /* ===== Detail dialog ===== */
   dialog#detail {
@@ -333,7 +341,7 @@
   <div class="meta-bar">
     <div class="meta-chip">المواضع المعروضة: <b id="stat-positions">٠</b></div>
     <div class="meta-chip">القراءات: <b id="stat-variants">٠</b></div>
-    <div class="meta-chip">غير المحقَّق: <b id="stat-unverified">٠</b></div>
+    <div class="meta-chip" title="لم يحقِّقه قارئ بعد، وإن طابق المصادر آليًّا">لم يُحقَّق بشريًّا: <b id="stat-unverified">٠</b></div>
   </div>
 </header>
 
@@ -386,7 +394,7 @@
     <div class="row">
       <label class="check"><input type="checkbox" id="f-hide-empty"> إخفاء القراءات التي لا يقرأ بها أحد من المعروضين</label>
       <label class="check"><input type="checkbox" id="f-only-diff"> المواضع التي يختلف فيها المعروضون فقط</label>
-      <label class="check"><input type="checkbox" id="f-only-unverified"> غير المحقَّق فقط</label>
+      <label class="check"><input type="checkbox" id="f-only-unverified"> غير المحقَّق بشريًّا فقط</label>
     </div>
   </section>
 

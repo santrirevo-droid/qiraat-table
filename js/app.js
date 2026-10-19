@@ -57,7 +57,7 @@
     return {
       key: `${surah}:${item.a}:${order}`,
       surah, ayah: item.a, harf: item.h, pos: item.p,
-      ref: item.ref || '', verified: !!item.ok,
+      ref: item.ref || '', verified: !!item.ok, chk: item.chk || '',
       byKhulf: variants,
       byIthbat: applyIthbat(variants),
       rasm: skeleton(item.h),
@@ -227,7 +227,22 @@
     return `<span class="tick-part">${parts.join('<br>')}</span>`;
   }
 
-  const unverifiedBadge = it => (it.verified ? '' : '<span class="badge-unverified" title="لم يُراجَع على المصدر بعد">غير محقَّق</span>');
+  // Machine check levels from data/tahqiq.json; human tahqiq (ok:true in rules) outranks them all.
+  const CHECKS = {
+    nb: ['مطابق للمصدرين', 'طابق آليًّا نصَّ النشر والبدور الزاهرة'],
+    n:  ['مطابق للنشر', 'طابق آليًّا نصَّ النشر'],
+    b:  ['مطابق للبدور', 'طابق آليًّا البدور الزاهرة، وكُتب من نص النشر'],
+    m:  ['مراجَع على النشر', 'قوبل يدويًّا بنص النشر في الصفحة المحال إليها']
+  };
+  const checkText = it => it.verified ? 'محقَّق: رُوجع على المصدر'
+    : CHECKS[it.chk] ? `${CHECKS[it.chk][1]}، ولم يُحقِّقه قارئ بعد` : 'لم يُراجَع على المصدر بعد';
+  const unverifiedBadge = it => {
+    if (it.verified) return '<span class="badge-check badge-ok" title="رُوجع على المصدر">محقَّق</span>';
+    const c = CHECKS[it.chk];
+    return c
+      ? `<span class="badge-check badge-${it.chk}" title="${c[1]}، ولم يُحقِّقه قارئ بعد">${c[0]}</span>`
+      : '<span class="badge-unverified" title="لم يُراجَع على المصدر بعد">غير محقَّق</span>';
+  };
 
   function renderHead(qurra) {
     const perQari = state.mode === 'ruwat' ? 2 : 1;
@@ -345,7 +360,7 @@
       </div>
       <h3>المرجع</h3>
       <p class="dlg-ref">${it.ref ? esc(it.ref) : 'لم يُضَف المرجع لهذا الموضع بعد.'}</p>
-      <p class="dlg-status ${it.verified ? 'ok' : ''}">${it.verified ? '✓ رُوجع على المصدر' : 'لم يُراجَع على المصدر بعد'}</p>`;
+      <p class="dlg-status ${it.verified ? 'ok' : ''}">${esc(checkText(it))}</p>`;
     const dlg = $('detail');
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
   }
@@ -366,7 +381,7 @@
       </div>
       ${others.length ? `<div class="tip-sec"><div class="tip-label">مواضع أخرى في الآية (${toAr(others.length)})</div>
         <div class="tip-others">${others.map(o => `<span class="tip-chip">${esc(o.harf)}</span>`).join('')}</div></div>` : ''}
-      <div class="tip-foot"><span>${it.ref ? esc(it.ref) : 'بلا مرجع بعد'}</span><span class="tip-hint">انقر للتفصيل</span></div>`;
+      <div class="tip-foot"><span>${it.ref ? esc(it.ref) : 'بلا مرجع بعد'}<br>${esc(checkText(it))}</span><span class="tip-hint">انقر للتفصيل</span></div>`;
   }
 
   function initTip() {
